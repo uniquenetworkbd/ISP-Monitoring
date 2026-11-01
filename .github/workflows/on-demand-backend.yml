@@ -1,0 +1,51 @@
+name: On-Demand ISP Network Scanner
+
+on:
+  repository_dispatch:
+    types: [trigger-backend-scan]
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Use GitHub-hosted runner or an ISP-network self-hosted runner'
+        required: true
+        type: choice
+        default: github-hosted
+        options:
+          - github-hosted
+          - self-hosted
+
+permissions:
+  contents: read
+
+concurrency:
+  group: isp-on-demand-network-scan
+  cancel-in-progress: false
+
+jobs:
+  backend-sync-job:
+    # repository_dispatch has no inputs, so it uses the GitHub-hosted runner.
+    # Select self-hosted only after registering a runner inside the ISP network.
+    runs-on: ${{ github.event.inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run network scan and MongoDB sync
+        env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          NODE_ENV: production
+        run: node scripts/runSync.js
