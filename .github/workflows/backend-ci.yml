@@ -33,3 +33,9 @@ jobs:
       - name: Validate published baseline snapshot
         run: npm run validate
         working-directory: backend
+
+      - name: Validate frontend JavaScript syntax
+        run: |
+          for file in frontend/assets/js/*.js; do
+            node --input-type=module --check < "$file"
+          done
