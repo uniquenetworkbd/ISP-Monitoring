@@ -34,6 +34,9 @@ jobs:
         run: npm run validate
         working-directory: backend
 
+      - name: Validate backend scanner syntax
+        run: node --check backend/scripts/runSync.js
+
       - name: Validate frontend JavaScript syntax
         run: |
           for file in frontend/assets/js/*.js; do
