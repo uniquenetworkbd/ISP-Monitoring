@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { assertPrivateRepository } = require('./repositoryPrivacyGuard');
+const { assertPrivateRepository } = require('../scripts/assertPrivateRepository');
 
 function response(status, body) {
     return { ok: status >= 200 && status < 300, status, json: async () => body };
