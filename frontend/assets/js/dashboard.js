@@ -28,6 +28,9 @@ function renderSnapshot(snapshot) {
           <td class="small text-muted">${formatDate(device.checkedAt)}</td>
         </tr>`;
     }).join('');
+    const trafficSummary = byId('dashboard-traffic-summary');
+    const rateCount = (snapshot.telemetry?.devices || []).flatMap(device => device.interfaces || []).filter(item => Number.isFinite(item.rxBitsPerSecond) || Number.isFinite(item.txBitsPerSecond)).length;
+    if (trafficSummary) trafficSummary.textContent = rateCount ? rateCount + ' interface(s) have calculated rates in this snapshot.' : 'Bandwidth rates require two valid scanner samples; no calculated rates are available yet.';
     byId('device-status-rows').innerHTML = rows || '<tr><td colspan="5" class="text-muted text-center py-4">No device scan data is available yet. Configure devices and run the GitHub Actions scanner.</td></tr>';
 }
 function renderFallback(error) {
