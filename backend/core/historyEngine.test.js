@@ -52,3 +52,22 @@ test('history detects added and removed devices', () => {
         { deviceId: 'old-router', change: 'removed', from: 'online', to: null }
     ]);
 });
+
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { appendHistoryRecord } = require('./historyEngine');
+
+test('persists each history record as a valid JSONL entry', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'isp-history-'));
+    const record = { schemaVersion: 1, recordedAt: '2026-11-01T16:00:00.000Z', snapshotStatus: 'success' };
+    const target = appendHistoryRecord(directory, record);
+    const lines = fs.readFileSync(target, 'utf8').trim().split('\n');
+    assert.equal(lines.length, 1);
+    assert.deepEqual(JSON.parse(lines[0]), record);
+});
+
+test('rejects invalid history timestamps', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'isp-history-invalid-'));
+    assert.throws(() => appendHistoryRecord(directory, { recordedAt: 'not-a-date' }), /valid date/);
+});
