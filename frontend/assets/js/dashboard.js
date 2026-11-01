@@ -12,6 +12,9 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
 
 function renderSnapshot(snapshot) {
     byId('metric-total-devices').textContent = snapshot.scannedDevices ?? snapshot.devices.length;
+    const mikrotikCount = snapshot.devices.filter(device => device.type === 'mikrotik').length;
+    const oltCount = snapshot.devices.filter(device => device.type === 'olt').length;
+    byId('metric-device-breakdown').textContent = `MikroTik: ${mikrotikCount} | OLT: ${oltCount}`;
     byId('metric-online-devices').textContent = snapshot.onlineDevices ?? snapshot.devices.filter(d => d.status === 'online').length;
     byId('metric-active-users').textContent = snapshot.totalActiveUsers ?? (snapshot.users || []).length;
     byId('metric-offline-devices').textContent = `${snapshot.offlineDevices ?? snapshot.devices.filter(d => d.status !== 'online').length} device(s) offline`;
