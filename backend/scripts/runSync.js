@@ -1,61 +1,49 @@
 /**
- * GitHub-only ISP scanner.
- *
- * Device credentials/configuration are supplied through the ISP_DEVICES_JSON
- * GitHub Actions secret. Never commit credentials into the repository.
- * Output: data/devices-status.json
+ * GitHub-only ISP scanner entrypoint.
+ * Credentials/configuration are supplied through ISP_DEVICES_JSON.
  */
-const fs = require('fs');
 const path = require('path');
 const MikroTikService = require('../services/mikrotikService');
 const OLTService = require('../services/oltService');
+const { normalizeRegistry } = require('../core/deviceRegistry');
+const { buildSnapshot, writeSnapshot } = require('../core/snapshotEngine');
 
 function loadDevices() {
     const raw = process.env.ISP_DEVICES_JSON;
-    if (!raw) {
-        throw new Error('ISP_DEVICES_JSON secret is missing. Configure the device array as a GitHub Actions secret.');
-    }
+    if (!raw) throw new Error('ISP_DEVICES_JSON secret is missing.');
     let parsed;
-    try {
-        parsed = JSON.parse(raw);
-    } catch {
-        throw new Error('ISP_DEVICES_JSON must contain valid JSON.');
-    }
+    try { parsed = JSON.parse(raw); } catch { throw new Error('ISP_DEVICES_JSON must contain valid JSON.'); }
     const devices = Array.isArray(parsed) ? parsed : parsed.devices;
-    if (!Array.isArray(devices) || devices.length === 0) {
-        throw new Error('ISP_DEVICES_JSON must contain a non-empty devices array.');
-    }
-    return devices;
+    return normalizeRegistry(devices);
 }
 
 function safeError(error) {
-    // Avoid accidentally publishing credentials embedded in low-level errors.
-    return String(error && error.message ? error.message : error)
+    return String(error?.message || error)
         .replace(/(password|community|credential)\s*[:=]\s*\S+/ig, '$1=[redacted]')
         .slice(0, 500);
 }
 
 async function scanDevice(device) {
-    const name = String(device.deviceName || device.name || '').trim();
-    const type = String(device.deviceType || device.type || '').toLowerCase();
-    const host = String(device.deviceIP || device.host || '').trim();
-    if (!name || !host || !['mikrotik', 'olt'].includes(type)) {
-        throw new Error('Each device requires deviceName, deviceIP and deviceType (mikrotik or olt).');
-    }
-
-    if (type === 'mikrotik') {
+    if (device.deviceType === 'mikrotik') {
         const service = new MikroTikService(
-            host,
-            device.deviceUser || device.username,
-            device.devicePass || device.password,
-            device.devicePort || device.port || 8728
+            device.host,
+            device.username || device.deviceUser,
+            device.password || device.devicePass,
+            device.port || 8728
         );
         const [systemInfo, activeUsers] = await Promise.all([
             service.getSystemResource(),
             service.getActivePPPoEUsers()
         ]);
         return {
-            device: name, type, host, status: 'online',
+            deviceId: device.deviceId,
+            deviceName: device.deviceName,
+            type: device.deviceType,
+            host: device.host,
+            port: device.port,
+            vendor: device.vendor,
+            model: device.model,
+            status: 'online',
             checkedAt: new Date().toISOString(),
             systemInfo,
             activeUsers: activeUsers.map(user => ({
@@ -64,80 +52,81 @@ async function scanDevice(device) {
                 uptime: user.uptime,
                 callerId: user.callerId,
                 service: user.service,
-                sourceDeviceTag: name,
+                sourceDeviceTag: device.deviceId,
                 status: 'Active'
             }))
         };
     }
 
-    const service = new OLTService(
-        host,
-        device.snmpCommunity || device.community,
-        undefined,
-        { port: device.snmpPort || 161, timeout: device.timeout || 5000, retries: 1 }
-    );
-    const systemInfo = await service.getOLTSystemStatus();
-    return {
-        device: name, type, host, status: 'online',
-        checkedAt: new Date().toISOString(),
-        systemInfo,
-        activeUsers: []
-    };
+    if (device.deviceType === 'olt') {
+        const service = new OLTService(
+            device.host,
+            device.snmpCommunity || device.community,
+            undefined,
+            { port: device.port || 161, timeout: device.timeout || 5000, retries: 1 }
+        );
+        const systemInfo = await service.getOLTSystemStatus();
+        return {
+            deviceId: device.deviceId,
+            deviceName: device.deviceName,
+            type: device.deviceType,
+            host: device.host,
+            port: device.port,
+            vendor: device.vendor,
+            model: device.model,
+            status: 'online',
+            checkedAt: new Date().toISOString(),
+            systemInfo,
+            onus: [],
+            activeUsers: []
+        };
+    }
+
+    throw new Error(`Scanner adapter is not implemented for device type: ${device.deviceType}`);
 }
 
 async function main() {
     const devices = loadDevices();
     console.log(`[GitHub-only scanner] Scanning ${devices.length} configured device(s)...`);
-
     const results = [];
+    const activeUsers = [];
+
     for (const device of devices) {
-        const name = device.deviceName || device.name || 'unnamed-device';
         try {
-            results.push(await scanDevice(device));
-            console.log(`[OK] ${name}`);
+            const result = await scanDevice(device);
+            results.push(result);
+            activeUsers.push(...(result.activeUsers || []));
+            console.log(`[OK] ${device.deviceId}`);
         } catch (error) {
             results.push({
-                device: name,
-                type: device.deviceType || device.type || 'unknown',
-                host: device.deviceIP || device.host || null,
+                deviceId: device.deviceId,
+                deviceName: device.deviceName,
+                type: device.deviceType,
+                host: device.host,
+                port: device.port,
+                vendor: device.vendor,
+                model: device.model,
                 status: 'offline',
                 checkedAt: new Date().toISOString(),
                 error: safeError(error),
-                activeUsers: []
+                activeUsers: [],
+                onus: []
             });
-            console.error(`[FAILED] ${name}: ${safeError(error)}`);
+            console.error(`[FAILED] ${device.deviceId}: ${safeError(error)}`);
         }
     }
 
-    const onlineDevices = results.filter(item => item.status === 'online').length;
-    const activeUsers = results.flatMap(item => item.activeUsers || []);
-    const output = {
-        schemaVersion: 1,
-        lastUpdated: new Date().toISOString(),
-        status: onlineDevices === results.length ? 'success' : onlineDevices > 0 ? 'partial' : 'failed',
-        scannedDevices: results.length,
-        onlineDevices,
-        offlineDevices: results.length - onlineDevices,
-        totalActiveUsers: activeUsers.length,
-        devices: results,
-        users: activeUsers
-    };
+    const target = path.resolve(__dirname, '../../data/devices-status.json');
+    const snapshot = buildSnapshot(results, activeUsers);
+    writeSnapshot(target, snapshot);
+    console.log(`[GitHub-only scanner] Snapshot written: ${target}`);
 
-    const dataDir = path.resolve(__dirname, '../../data');
-    fs.mkdirSync(dataDir, { recursive: true });
-    const target = path.join(dataDir, 'devices-status.json');
-    const temporary = target + '.tmp';
-    fs.writeFileSync(temporary, JSON.stringify(output, null, 2) + '\n', { mode: 0o644 });
-    fs.renameSync(temporary, target);
-    console.log(`[GitHub-only scanner] Snapshot written: data/devices-status.json (${onlineDevices}/${results.length} online)`);
-
-    // Preserve the new snapshot even for partial scans; fail the workflow if all devices failed.
-    if (onlineDevices === 0) {
-        throw new Error('All configured devices failed. Snapshot saved for diagnosis; refusing a successful workflow exit.');
+    if (snapshot.onlineDevices === 0) {
+        throw new Error('All configured devices failed. Snapshot saved for diagnosis; workflow remains failed.');
     }
 }
 
 main().catch(error => {
-    console.error('[GitHub-only scanner] Fatal:', safeError(error));
+    console.error(`[GitHub-only scanner] Fatal: ${safeError(error)}`);
     process.exitCode = 1;
 });
