@@ -16,7 +16,7 @@ const apiRequest = async (endpoint, method = 'GET', data = null) => {
             method,
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': \`Bearer \${localStorage.getItem('token') || ''}\`
+                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
             }
         };
 
@@ -24,7 +24,7 @@ const apiRequest = async (endpoint, method = 'GET', data = null) => {
             options.body = JSON.stringify(data);
         }
 
-        const response = await fetch(\`\${API_BASE_URL}\${endpoint}\`, options);
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
         const result = await response.json();
 
         if (!response.ok) {
@@ -33,7 +33,7 @@ const apiRequest = async (endpoint, method = 'GET', data = null) => {
 
         return result;
     } catch (error) {
-        console.error(\`❌ API Error [\${method} \${endpoint}]:\`, error.message);
+        console.error(`❌ API Error [${method} ${endpoint}]:`, error.message);
         throw error;
     }
 };
