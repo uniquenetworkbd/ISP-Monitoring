@@ -13,8 +13,16 @@ function loadDevices() {
     if (!raw) throw new Error('ISP_DEVICES_JSON secret is missing.');
     let parsed;
     try { parsed = JSON.parse(raw); } catch { throw new Error('ISP_DEVICES_JSON must contain valid JSON.'); }
-    const devices = Array.isArray(parsed) ? parsed : parsed.devices;
-    return normalizeRegistry(devices);
+    const input = Array.isArray(parsed) ? parsed : parsed.devices;
+    if (!Array.isArray(input) || input.length === 0) throw new Error('ISP_DEVICES_JSON must contain a non-empty devices array.');
+    const registry = normalizeRegistry(input);
+    return registry.map((device, index) => ({
+        ...device,
+        username: input[index].deviceUser || input[index].username,
+        password: input[index].devicePass || input[index].password,
+        snmpCommunity: input[index].snmpCommunity || input[index].community,
+        timeout: input[index].timeout
+    }));
 }
 
 function safeError(error) {
@@ -25,60 +33,32 @@ function safeError(error) {
 
 async function scanDevice(device) {
     if (device.deviceType === 'mikrotik') {
-        const service = new MikroTikService(
-            device.host,
-            device.username || device.deviceUser,
-            device.password || device.devicePass,
-            device.port || 8728
-        );
+        const service = new MikroTikService(device.host, device.username, device.password, device.port || 8728);
         const [systemInfo, activeUsers] = await Promise.all([
             service.getSystemResource(),
             service.getActivePPPoEUsers()
         ]);
         return {
-            deviceId: device.deviceId,
-            deviceName: device.deviceName,
-            type: device.deviceType,
-            host: device.host,
-            port: device.port,
-            vendor: device.vendor,
-            model: device.model,
-            status: 'online',
-            checkedAt: new Date().toISOString(),
-            systemInfo,
+            deviceId: device.deviceId, deviceName: device.deviceName, type: device.deviceType,
+            host: device.host, port: device.port, vendor: device.vendor, model: device.model,
+            status: 'online', checkedAt: new Date().toISOString(), systemInfo,
             activeUsers: activeUsers.map(user => ({
-                username: user.username,
-                address: user.address,
-                uptime: user.uptime,
-                callerId: user.callerId,
-                service: user.service,
-                sourceDeviceTag: device.deviceId,
-                status: 'Active'
+                username: user.username, address: user.address, uptime: user.uptime,
+                callerId: user.callerId, service: user.service, sourceDeviceTag: device.deviceId, status: 'Active'
             }))
         };
     }
 
     if (device.deviceType === 'olt') {
-        const service = new OLTService(
-            device.host,
-            device.snmpCommunity || device.community,
-            undefined,
-            { port: device.port || 161, timeout: device.timeout || 5000, retries: 1 }
-        );
+        if (!device.snmpCommunity) throw new Error('OLT SNMP community is required');
+        const service = new OLTService(device.host, device.snmpCommunity, undefined, {
+            port: device.port || 161, timeout: device.timeout || 5000, retries: 1
+        });
         const systemInfo = await service.getOLTSystemStatus();
         return {
-            deviceId: device.deviceId,
-            deviceName: device.deviceName,
-            type: device.deviceType,
-            host: device.host,
-            port: device.port,
-            vendor: device.vendor,
-            model: device.model,
-            status: 'online',
-            checkedAt: new Date().toISOString(),
-            systemInfo,
-            onus: [],
-            activeUsers: []
+            deviceId: device.deviceId, deviceName: device.deviceName, type: device.deviceType,
+            host: device.host, port: device.port, vendor: device.vendor, model: device.model,
+            status: 'online', checkedAt: new Date().toISOString(), systemInfo, onus: [], activeUsers: []
         };
     }
 
@@ -99,18 +79,10 @@ async function main() {
             console.log(`[OK] ${device.deviceId}`);
         } catch (error) {
             results.push({
-                deviceId: device.deviceId,
-                deviceName: device.deviceName,
-                type: device.deviceType,
-                host: device.host,
-                port: device.port,
-                vendor: device.vendor,
-                model: device.model,
-                status: 'offline',
-                checkedAt: new Date().toISOString(),
-                error: safeError(error),
-                activeUsers: [],
-                onus: []
+                deviceId: device.deviceId, deviceName: device.deviceName, type: device.deviceType,
+                host: device.host, port: device.port, vendor: device.vendor, model: device.model,
+                status: 'offline', checkedAt: new Date().toISOString(), error: safeError(error),
+                activeUsers: [], onus: []
             });
             console.error(`[FAILED] ${device.deviceId}: ${safeError(error)}`);
         }
@@ -121,9 +93,7 @@ async function main() {
     writeSnapshot(target, snapshot);
     console.log(`[GitHub-only scanner] Snapshot written: ${target}`);
 
-    if (snapshot.onlineDevices === 0) {
-        throw new Error('All configured devices failed. Snapshot saved for diagnosis; workflow remains failed.');
-    }
+    if (snapshot.onlineDevices === 0) throw new Error('All configured devices failed. Snapshot saved for diagnosis; workflow remains failed.');
 }
 
 main().catch(error => {
