@@ -56,7 +56,7 @@ function appendHistoryRecord(directory, record) {
     const day = date.toISOString().slice(0, 10);
     const target = path.resolve(directory, `${day}.jsonl`);
     fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.appendFileSync(target, `${JSON.stringify(record)}\\n`, { encoding: 'utf8', mode: 0o644 });
+    fs.appendFileSync(target, `${JSON.stringify(record)}\n`, { encoding: 'utf8', mode: 0o644 });
     return target;
 }
 
