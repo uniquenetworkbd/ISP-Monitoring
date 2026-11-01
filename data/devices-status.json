@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "lastUpdated": null,
   "status": "not_scanned",
   "scannedDevices": 0,
@@ -7,5 +7,6 @@
   "offlineDevices": 0,
   "totalActiveUsers": 0,
   "devices": [],
-  "users": []
+  "users": [],
+  "previousUpdatedAt": null
 }
