@@ -1,0 +1,2 @@
+/* Responsive layout foundation */
+@media (max-width: 768px) { .sidebar { width: 100%; } .dashboard-grid { grid-template-columns: 1fr; } }

@@ -1,0 +1,1 @@
+export const cloudService = { name: process.env.CLOUD_SERVICE || 'local', environment: process.env.NODE_ENV || 'development' };

@@ -1,0 +1,1 @@
+export const Device = { name: 'Device', fields: ['name', 'type', 'host', 'port', 'status', 'lastSeen'] };

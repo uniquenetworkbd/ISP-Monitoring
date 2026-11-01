@@ -1,0 +1,1 @@
+export const User = { name: 'User', fields: ['username', 'name', 'ip', 'package', 'status', 'lastSeen'] };

@@ -1,0 +1,1 @@
+export async function scanNow(device) { return { device, status: 'queued', scannedAt: new Date().toISOString() }; }
