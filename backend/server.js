@@ -96,7 +96,7 @@ async function startServer() {
 
     server = app.listen(PORT, () => {
         console.log(`ISP Monitoring API listening on port ${PORT}`);
-        console.log(`Automatic network polling interval: ${SCAN_INTERVAL_MS / 60000} minute(s)`);
+        console.log('On-demand scanning is enabled; no background polling timer is running.');
     });
 
 }
