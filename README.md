@@ -1,18 +1,54 @@
-# ISP Monitoring System
+# 🌐 ISP Enterprise Cloud Network Monitoring System (v2.0)
 
-A production-oriented ISP monitoring platform foundation for network device monitoring, user synchronization, analytics, and secure administration.
+An enterprise-grade, cloud-based multi-page frontend and backend architecture designed for professional ISP networks to monitor Mikrotik routers, OLTs, Switches, and ONUs in real-time.
 
-## Project Structure
+---
 
-- `frontend/` — dashboard and UI/UX
-- `backend/` — API, device communication, controllers, models, and services
-- `package.json` — project metadata and scripts
-- `.env` — local environment placeholders (ignored by Git)
+## 🏗️ System Architecture
 
-## Initial Scope
+- **Frontend:** HTML5, CSS3, JavaScript (ES6+), Bootstrap 5.3, FontAwesome.
+- **Backend:** Node.js, Express.js (RESTful API, modular controllers & routes).
+- **Database:** MongoDB Atlas (Cloud NoSQL DB for device caching & client synchronization).
+- **Integration Layer:** Direct RouterOS API & OLT SNMP/Telnet network scanner services.
 
-This repository starts as a clean architectural foundation. Device integrations are isolated behind backend service modules so RouterOS, SNMP, SSH, and future OLT adapters can be implemented without coupling the frontend to network credentials.
+---
 
-## Security
+## 📁 Project Directory Structure
 
-Never commit real API keys, passwords, tokens, SNMP communities, or private credentials. Use local `.env` values and GitHub Actions Secrets for CI/CD.
+\`\`\`text
+isp-cloud-monitor/
+│
+├── frontend/
+│   ├── assets/
+│   │   ├── css/
+│   │   │   ├── style.css
+│   │   │   └── responsive.css
+│   │   └── js/
+│   │       └── api.js
+│   ├── index.html
+│   ├── devices.html
+│   ├── add-device.html
+│   ├── users.html
+│   ├── analytics.html
+│   ├── settings.html
+│   └── login.html
+│
+├── backend/
+│   ├── config/
+│   │   └── db.js
+│   ├── controllers/
+│   │   ├── deviceController.js
+│   │   └── userController.js
+│   ├── models/
+│   │   ├── Device.js
+│   │   └── User.js
+│   ├── routes/
+│   │   ├── deviceRoutes.js
+│   │   └── userRoutes.js
+│   ├── services/
+│   │   └── networkScannerService.js
+│   ├── .env.example
+│   ├── package.json
+│   └── server.js
+│
+└── README.md
