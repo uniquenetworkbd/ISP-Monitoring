@@ -1,6 +1,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { normalizeDeviceForm, buildSecretPayload } = require('../../frontend/assets/js/device-config-core');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync(require('node:path').resolve(__dirname, '../../frontend/assets/js/device-config-core.js'), 'utf8');
+const browserGlobal = {};
+vm.runInNewContext(source, { globalThis: browserGlobal });
+const { normalizeDeviceForm, buildSecretPayload } = browserGlobal.ISPDeviceConfig;
 
 test('normalizes MikroTik form and applies API port default', () => {
     const result = normalizeDeviceForm({ deviceType: 'mikrotik', deviceName: 'Core Router', deviceIP: 'router.example.net', deviceUser: 'monitor', devicePass: 'secret' });
