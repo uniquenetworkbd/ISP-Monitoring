@@ -1,5 +1,76 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ISP Monitoring</title><link rel="stylesheet" href="assets/css/style.css"><link rel="stylesheet" href="assets/css/responsive.css"></head>
-<body><main class="container"><h1>ISP Monitoring System</h1><p>Module foundation ready.</p></main><script type="module" src="assets/js/main.js"></script></body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISP Enterprise Cloud Monitor - Admin Login</title>
+    <!-- Bootstrap 5.3 CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Custom Advanced Styles -->
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/responsive.css">
+</head>
+<body class="bg-dark d-flex align-items-center justify-content-center vh-100">
+
+    <!-- Centered Login Container -->
+    <div class="container" style="max-width: 450px;">
+        <div class="card border-0 shadow-lg rounded-4 p-4 p-md-5 bg-white">
+            
+            <!-- Brand Logo / Header -->
+            <div class="text-center mb-4">
+                <div class="bg-primary bg-opacity-10 text-primary d-inline-flex p-3 rounded-circle mb-3 shadow-sm">
+                    <i class="fa-solid fa-network-wired fa-2x"></i>
+                </div>
+                <h3 class="fw-bold text-dark">ISP Cloud Monitor</h3>
+                <p class="text-muted small">Enter your administrator credentials to access the portal.</p>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" action="index.html" method="GET">
+                <!-- Username Field -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold text-secondary small">Administrator Username</label>
+                    <div class="input-group shadow-sm">
+                        <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-user text-muted"></i></span>
+                        <input type="text" class="form-control form-control-lg border-start-0 ps-0 fs-6" placeholder="admin" required>
+                    </div>
+                </div>
+
+                <!-- Password Field -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold text-secondary small">Secure Password</label>
+                    <div class="input-group shadow-sm">
+                        <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-lock text-muted"></i></span>
+                        <input type="password" class="form-control form-control-lg border-start-0 ps-0 fs-6" placeholder="••••••••" required>
+                    </div>
+                </div>
+
+                <!-- Remember Me & Forgot Password -->
+                <div class="d-flex justify-content-between align-items-center mb-4 text-muted small">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="rememberMe">
+                        <label class="form-check-label" for="rememberMe">Remember Device</label>
+                    </div>
+                    <a href="#" class="text-decoration-none text-primary fw-semibold">Forgot Access?</a>
+                </div>
+
+                <!-- Sign In Button -->
+                <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill shadow-sm fw-semibold py-3">
+                    <i class="fa-solid fa-right-to-bracket me-2"></i>Sign In to Cloud
+                </button>
+            </form>
+
+            <!-- Footer Note -->
+            <div class="text-center mt-4 pt-3 border-top">
+                <span class="text-muted" style="font-size: 12px;">Secured with JWT Token Authentication & SSL</span>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Bootstrap 5.3 JS Bundle CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
 </html>
