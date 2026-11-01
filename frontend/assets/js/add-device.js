@@ -6,7 +6,6 @@ const oltFields = document.getElementById('oltFields');
 const portInput = document.getElementById('devicePort');
 const feedback = document.getElementById('formFeedback');
 const { normalizeDeviceForm, buildSecretPayload } = window.ISPDeviceConfig;
-
 function updateTypeFields() {
     const type = typeSelect.value;
     mikrotikFields.hidden = type !== 'mikrotik';
@@ -15,33 +14,37 @@ function updateTypeFields() {
     document.getElementById('deviceUser').required = type === 'mikrotik';
     document.getElementById('devicePass').required = type === 'mikrotik';
     document.getElementById('snmpCommunity').required = type === 'olt';
+    document.getElementById('discoveryOid').required = type === 'olt';
 }
-function getFormData() {
-    return Object.fromEntries(new FormData(form).entries());
-}
+function getFormData() { return Object.fromEntries(new FormData(form).entries()); }
 function showFeedback(message, kind = 'info') {
-    feedback.className = `alert alert-${kind}`;
+    feedback.className = 'alert alert-' + kind;
     feedback.textContent = message;
     feedback.hidden = false;
 }
+function validate() { return normalizeDeviceForm(getFormData()); }
 typeSelect.addEventListener('change', updateTypeFields);
 form.addEventListener('submit', event => {
     event.preventDefault();
     try {
-        const device = normalizeDeviceForm(getFormData());
+        const device = validate();
         const payload = buildSecretPayload(device);
         const blob = new Blob([payload + '\n'], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.href = url;
         anchor.download = 'isp-devices-secret.json';
+        document.body.appendChild(anchor);
         anchor.click();
+        anchor.remove();
         URL.revokeObjectURL(url);
-        showFeedback('Configuration validated and downloaded. Next, add the JSON contents to GitHub → Settings → Secrets and variables → Actions as ISP_DEVICES_JSON, then run the scanner workflow. The browser has not registered or connected to the device.', 'success');
+        showFeedback('Configuration validated and downloaded. Add the JSON contents to GitHub → Settings → Secrets and variables → Actions as ISP_DEVICES_JSON, then run the scanner workflow. No network test or device registration was performed by this page.', 'success');
     } catch (error) { showFeedback(error.message, 'danger'); }
 });
 document.getElementById('validateConfig').addEventListener('click', () => {
-    try { normalizeDeviceForm(getFormData()); showFeedback('Configuration format is valid. This is local input validation only; no network connection was attempted.', 'success'); }
-    catch (error) { showFeedback(error.message, 'danger'); }
+    try {
+        const device = validate();
+        showFeedback('Configuration is valid for ' + device.deviceType.toUpperCase() + '. This checks fields and OID syntax only; it does not contact the device.', 'success');
+    } catch (error) { showFeedback(error.message, 'danger'); }
 });
 updateTypeFields();
