@@ -1,2 +1,39 @@
-/* Responsive layout foundation */
-@media (max-width: 768px) { .sidebar { width: 100%; } .dashboard-grid { grid-template-columns: 1fr; } }
+/* ============================================================================
+   ISP MONITORING SYSTEM - RESPONSIVE MOBILE FIXES
+   ============================================================================ */
+
+/* Mobile / tablet sidebar and main-content adjustment */
+@media (max-width: 992px) {
+    .sidebar {
+        position: fixed;
+        left: -260px;
+        transition: 0.3s ease-in-out;
+        z-index: 1050;
+    }
+
+    .sidebar.active {
+        left: 0;
+    }
+
+    .main-content,
+    .container-fluid {
+        margin-left: 0 !important;
+        width: 100% !important;
+        padding: 15px;
+    }
+}
+
+/* Mobile dashboard/card layout */
+@media (max-width: 768px) {
+    .dashboard-cards,
+    .row {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .card {
+        width: 100% !important;
+        margin-bottom: 10px;
+    }
+}
