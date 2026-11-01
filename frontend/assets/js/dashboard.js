@@ -46,3 +46,5 @@ async function loadDashboard() {
     }
 }
 loadDashboard();
+// Refresh the published snapshot periodically; hardware polling remains an Actions job.
+window.setInterval(loadDashboard, 60000);
