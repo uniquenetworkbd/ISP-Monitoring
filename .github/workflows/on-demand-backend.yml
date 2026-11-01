@@ -39,6 +39,8 @@ jobs:
         run: node backend/scripts/runSync.js
         env:
           ISP_DEVICES_JSON: ${{ secrets.ISP_DEVICES_JSON }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
       - name: Ensure diagnostic snapshot exists
         if: always()
