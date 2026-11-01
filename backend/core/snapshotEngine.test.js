@@ -24,3 +24,10 @@ test('writes valid JSON atomically and can be parsed back', () => {
     assert.deepEqual(JSON.parse(fs.readFileSync(target, 'utf8')), snapshot);
     assert.equal(fs.existsSync(target + '.tmp'), false);
 });
+
+test('preserves queue telemetry and explicit topology parent links', () => {
+    const result = { deviceId: 'olt-1', deviceName: 'POP OLT', type: 'olt', host: '192.0.2.2', port: 161, status: 'online', parentDeviceId: 'core-r1', queues: [{ name: 'q1', rate: '1M/2M' }] };
+    const snapshot = buildSnapshot([result], [], null, '2026-11-01T17:00:00.000Z');
+    assert.equal(snapshot.devices[0].parentDeviceId, 'core-r1');
+    assert.equal(snapshot.devices[0].queues[0].rate, '1M/2M');
+});

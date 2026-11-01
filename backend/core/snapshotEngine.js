@@ -20,6 +20,8 @@ function buildSnapshot(results, users = [], previous = null, now = new Date().to
             checkedAt: result.checkedAt || now,
             systemInfo: result.systemInfo || null,
             interfaces: result.interfaces || [],
+            queues: result.queues || [],
+            parentDeviceId: result.parentDeviceId || null,
             activeUsers: result.activeUsers || [],
             onus: result.onus || [],
             error: result.error || null
