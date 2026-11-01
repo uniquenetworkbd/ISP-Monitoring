@@ -45,10 +45,17 @@ jobs:
         env:
           ISP_DEVICES_JSON: ${{ secrets.ISP_DEVICES_JSON }}
 
-      - name: Commit and push JSON snapshot
+      # Always attempt to publish a diagnostic snapshot, including all-offline scans.
+      # The scanner step's failure remains visible in the overall workflow result.
+      - name: Commit and push JSON snapshot (including diagnostic fallback)
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          if [ ! -f data/devices-status.json ]; then
+            echo "No status snapshot exists; nothing to publish."
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/devices-status.json
