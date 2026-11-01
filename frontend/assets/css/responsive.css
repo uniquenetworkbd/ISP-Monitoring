@@ -1,39 +1,120 @@
-/* ============================================================================
-   ISP MONITORING SYSTEM - RESPONSIVE MOBILE FIXES
-   ============================================================================ */
+/**
+ * ============================================================================
+ * ISP MONITORING SYSTEM - COMPLETE RESPONSIVE & MOBILE FIXES
+ * ============================================================================
+ */
 
-/* Mobile / tablet sidebar and main-content adjustment */
+/* Desktop base layout */
+.sidebar {
+    width: 260px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 1040;
+    transition: all 0.3s ease-in-out;
+    background-color: #212529;
+}
+
+.main-content {
+    margin-left: 260px;
+    padding: 25px;
+    transition: all 0.3s ease-in-out;
+}
+
+.mobile-header {
+    display: none;
+}
+
+.mobile-sidebar-overlay {
+    display: none;
+}
+
+/* Mobile and tablet */
 @media (max-width: 992px) {
     .sidebar {
-        position: fixed;
         left: -260px;
-        transition: 0.3s ease-in-out;
-        z-index: 1050;
     }
 
     .sidebar.active {
         left: 0;
     }
 
-    .main-content,
-    .container-fluid {
+    .main-content {
         margin-left: 0 !important;
         width: 100% !important;
         padding: 15px;
     }
+
+    .mobile-header {
+        display: flex !important;
+        justify-content: space-between;
+        align-items: center;
+        background: #212529;
+        color: #fff;
+        padding: 10px 15px;
+        margin: 10px 15px 0;
+        border-radius: 8px;
+        position: relative;
+        z-index: 1030;
+    }
+
+    .mobile-sidebar-overlay.active {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 1035;
+    }
 }
 
-/* Mobile dashboard/card layout */
+/* Mobile cards and Bootstrap grid */
 @media (max-width: 768px) {
-    .dashboard-cards,
     .row {
         display: flex;
         flex-direction: column;
         gap: 15px;
+        margin: 0 !important;
+    }
+
+    .col-md-4,
+    .col-lg-3,
+    .col-xl-4,
+    .col-sm-6,
+    .col-md-6,
+    .col-md-12 {
+        width: 100% !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
     }
 
     .card {
         width: 100% !important;
-        margin-bottom: 10px;
+        margin-bottom: 0 !important;
+    }
+
+    .content-body {
+        padding: 15px !important;
+    }
+
+    .top-navbar {
+        padding-left: 15px !important;
+        padding-right: 15px !important;
+    }
+}
+
+/* Very small screens */
+@media (max-width: 400px) {
+    .mobile-header {
+        margin-left: 10px;
+        margin-right: 10px;
+    }
+
+    .main-content {
+        padding: 10px;
+    }
+
+    .content-body {
+        padding: 10px !important;
     }
 }
