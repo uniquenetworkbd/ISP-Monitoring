@@ -27,11 +27,11 @@ const scanAllDevicesNetwork = async () => {
         let totalSyncedClients = 0;
 
         for (const device of activeDevices) {
-            console.log(\`📡 Connecting to [\${device.deviceType.toUpperCase()}] \${device.deviceName} (\${device.deviceIP}:\${device.devicePort})...\`);
+            console.log(`📡 Connecting to [${device.deviceType.toUpperCase()}] ${device.deviceName} (${device.deviceIP}:${device.devicePort})...`);
 
             // Simulated real-time fetched client payload from Mikrotik API / OLT SNMP
-            // In a production environment, you would use \`routeros-client\` for Mikrotik API 
-            // or \`net-snmp\` for OLT fiber transceiver queries here.
+            // In a production environment, you would use `routeros-client` for Mikrotik API 
+            // or `net-snmp` for OLT fiber transceiver queries here.
             const mockFetchedClients = generateMockScannedClients(device.deviceName, device.deviceType);
 
             for (const client of mockFetchedClients) {
@@ -53,7 +53,7 @@ const scanAllDevicesNetwork = async () => {
             // Update device last scanned timestamp
             device.lastScanned = Date.now();
             await device.save();
-            console.log(\`✅ Successfully synced \${mockFetchedClients.length} clients from \${device.deviceName}\`);
+            console.log(`✅ Successfully synced ${mockFetchedClients.length} clients from ${device.deviceName}`);
         }
 
         return {
@@ -65,7 +65,7 @@ const scanAllDevicesNetwork = async () => {
 
     } catch (error) {
         console.error('❌ Error during network scanner execution:', error.message);
-        throw new Error(\`Network Scanner Failed: \${error.message}\`);
+        throw new Error(`Network Scanner Failed: ${error.message}`);
     }
 };
 
