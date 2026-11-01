@@ -3,8 +3,8 @@
     'use strict';
     const SUPPORTED = new Set(['mikrotik', 'olt']);
     function isValidHost(host) {
-        if (!host || host.length > 253 || host.includes('://') || /\\s/.test(host)) return false;
-        if (/^\\d+(?:\\.\\d+){3}$/.test(host)) return host.split('.').every(part => Number(part) >= 0 && Number(part) <= 255 && String(Number(part)) === part);
+        if (!host || host.length > 253 || host.includes('://') || /\s/.test(host)) return false;
+        if (/^\d+(?:\.\d+){3}$/.test(host)) return host.split('.').every(part => Number(part) >= 0 && Number(part) <= 255 && String(Number(part)) === part);
         return host.split('.').every(label => label.length >= 1 && label.length <= 63 && /^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(label));
     }
     function normalizeDeviceForm(input) {
