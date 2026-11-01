@@ -1,24 +1,12 @@
-/**
- * ============================================================================
- * ISP MONITORING SYSTEM - DATABASE CONFIGURATION MODULE
- * Description: Handles secure connection pooling with MongoDB Atlas Cloud
- * ============================================================================
- */
-
 const mongoose = require('mongoose');
 
-const connectDB = async () => {
-    try {
-        const conn = await mongoose.connect(process.env.MONGO_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        });
+async function connectDB() {
+  const uri = process.env.MONGO_URI;
+  if (!uri) throw new Error('MONGO_URI is not configured');
 
-        console.log(`✅ MongoDB Cloud Connected Successfully: ${conn.connection.host}`);
-    } catch (error) {
-        console.error(`❌ Database Connection Failed: ${error.message}`);
-        process.exit(1);
-    }
-};
+  await mongoose.connect(uri);
+  console.log(`MongoDB connected: ${mongoose.connection.host}`);
+  return mongoose.connection;
+}
 
 module.exports = connectDB;
