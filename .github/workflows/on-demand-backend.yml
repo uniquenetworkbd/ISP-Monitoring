@@ -4,15 +4,6 @@ on:
   repository_dispatch:
     types: [trigger-backend-scan]
   workflow_dispatch:
-    inputs:
-      runner:
-        description: 'Runner with access to ISP network'
-        required: true
-        type: choice
-        default: github-hosted
-        options:
-          - github-hosted
-          - self-hosted
 
 permissions:
   contents: write
@@ -23,7 +14,7 @@ concurrency:
 
 jobs:
   scan-and-commit:
-    runs-on: ${{ github.event.inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout repository
@@ -45,22 +36,20 @@ jobs:
         env:
           ISP_DEVICES_JSON: ${{ secrets.ISP_DEVICES_JSON }}
 
-      # If installation/configuration fails before the scanner can write output,
-      # still create a diagnostic snapshot. Never overwrite a real scan result.
       - name: Ensure diagnostic snapshot exists
         if: always()
         run: |
           mkdir -p data
           if [ ! -s data/devices-status.json ]; then
-            node -e 'const fs=require("fs"); const p="data/devices-status.json"; fs.writeFileSync(p, JSON.stringify({schemaVersion:1,lastUpdated:new Date().toISOString(),status:"scan_error",scannedDevices:0,onlineDevices:0,offlineDevices:0,totalActiveUsers:0,devices:[],users:[],error:"Scanner did not produce a snapshot. Check workflow logs, dependencies and ISP_DEVICES_JSON configuration."},null,2)+"\\n");'
+            node -e 'const fs=require("fs"); const p="data/devices-status.json"; fs.writeFileSync(p, JSON.stringify({schemaVersion:1,lastUpdated:new Date().toISOString(),status:"scan_error",scannedDevices:0,onlineDevices:0,offlineDevices:0,totalActiveUsers:0,devices:[],users:[],error:"Scanner did not produce a snapshot. Check workflow logs and ISP_DEVICES_JSON configuration."},null,2)+"\n");'
           fi
 
-      # Always attempt to publish a diagnostic snapshot, including all-offline scans.
-      # The scanner step's failure remains visible in the overall workflow result.
-      - name: Commit and push JSON snapshot (including diagnostic fallback)
+      - name: Validate status snapshot
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
+        run: node backend/scripts/validateSnapshot.js
+
+      - name: Commit and push JSON snapshot
+        if: always()
         run: |
           if [ ! -f data/devices-status.json ]; then
             echo "No status snapshot exists; nothing to publish."
