@@ -21,7 +21,7 @@ function normalizeDevice(input) {
     if (!DEVICE_TYPES.has(type)) throw new Error(`Unsupported deviceType: ${type}`);
     const host = requiredString(input.deviceIP ?? input.host, 'deviceIP');
     const deviceId = normalizeDeviceId(input.deviceId || `${type}-${name}-${host}`);
-    const port = Number(input.devicePort ?? input.port ?? (type === 'mikrotik' ? 8728 : 161));
+    const port = Number(input.devicePort ?? input.snmpPort ?? input.port ?? (type === 'mikrotik' ? 8728 : 161));
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(`Invalid port for device ${deviceId}`);
     return {
         deviceId, deviceName: name, deviceType: type, host, port,

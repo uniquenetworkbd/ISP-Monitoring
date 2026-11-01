@@ -28,3 +28,8 @@ test('rejects duplicate devices and invalid user identity', () => {
     const badUser = { ...base, users: [{}], totalActiveUsers: 1 };
     assert.throws(() => validateSnapshot(badUser), /stable identity/);
 });
+
+test('uses snmpPort as the OLT management port when devicePort is absent', () => {
+    const device = normalizeDevice({ deviceName: 'POP OLT', deviceType: 'olt', deviceIP: '192.0.2.20', snmpPort: 1161 });
+    assert.equal(device.port, 1161);
+});
