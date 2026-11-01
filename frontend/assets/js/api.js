@@ -1,172 +1,92 @@
 /**
- * ============================================================================
- * ISP MONITORING SYSTEM - FRONTEND API BRIDGE
- * ============================================================================
- *
- * Configure window.ISP_API_BASE_URL before loading this module in production,
- * e.g. https://your-api-host.example.com/api
+ * Static GitHub Pages data adapter.
+ * No backend API or external database is required by the dashboard.
  */
+const DEFAULT_STATUS_URL =
+    'https://raw.githubusercontent.com/uniquenetworkbd/ISP-Monitoring/main/data/devices-status.json';
 
-const configuredApiUrl = window.ISP_API_BASE_URL;
-const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-const API_BASE_URL = String(
-    configuredApiUrl || (isLocalHost ? 'http://localhost:5000/api' : '')
-).replace(/\/$/, '');
+const STATUS_URL = window.ISP_STATUS_JSON_URL || DEFAULT_STATUS_URL;
+let cachedSnapshot = null;
+let cachedAt = 0;
+const CACHE_TTL_MS = 15000;
 
-class ApiService {
-    constructor(baseUrl = API_BASE_URL) {
-        this.baseUrl = baseUrl;
+export async function fetchStatusSnapshot({ force = false } = {}) {
+    if (!force && cachedSnapshot && Date.now() - cachedAt < CACHE_TTL_MS) {
+        return cachedSnapshot;
     }
-
-    getBaseUrl() {
-        if (!this.baseUrl) {
-            throw new Error('Backend API URL is not configured. Set window.ISP_API_BASE_URL before loading api.js.');
-        }
-        return this.baseUrl;
+    const separator = STATUS_URL.includes('?') ? '&' : '?';
+    const response = await fetch(`${STATUS_URL}${separator}_=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { Accept: 'application/json' }
+    });
+    if (!response.ok) throw new Error(`GitHub JSON request failed: HTTP ${response.status}`);
+    const snapshot = await response.json();
+    if (!snapshot || !Array.isArray(snapshot.devices)) {
+        throw new Error('The GitHub status JSON has an invalid schema.');
     }
-
-    async request(endpoint, options = {}) {
-        const token = window.localStorage ? localStorage.getItem('token') : null;
-        const headers = {
-            Accept: 'application/json',
-            ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...(options.headers || {})
-        };
-
-        const response = await fetch(`${this.getBaseUrl()}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`, {
-            ...options,
-            headers
-        });
-
-        const contentType = response.headers.get('content-type') || '';
-        const payload = contentType.includes('application/json')
-            ? await response.json()
-            : await response.text();
-
-        if (!response.ok) {
-            const message = payload && typeof payload === 'object'
-                ? payload.error || payload.message
-                : payload;
-            throw new Error(message || `HTTP ${response.status}`);
-        }
-        return payload;
-    }
-
-    async getDevices() {
-        const result = await this.request('/devices');
-        return result && result.success ? result.data : [];
-    }
-
-    async addDevice(deviceData) {
-        return this.request('/devices/add', {
-            method: 'POST',
-            body: JSON.stringify(deviceData)
-        });
-    }
-
-    async testConnection(deviceData) {
-        return this.request('/devices/test-connection', {
-            method: 'POST',
-            body: JSON.stringify(deviceData)
-        });
-    }
-
-    async triggerScan() {
-        return this.request('/devices/scan', { method: 'POST' });
-    }
-
-    async getUsers() {
-        return this.request('/users');
-    }
+    cachedSnapshot = snapshot;
+    cachedAt = Date.now();
+    return snapshot;
 }
 
-const api = new ApiService();
+export async function fetchDevices() {
+    const snapshot = await fetchStatusSnapshot();
+    return snapshot.devices;
+}
 
-export const apiFetch = (endpoint, options = {}) => api.request(endpoint, options);
-export const apiRequest = (endpoint, method = 'GET', data = null) => api.request(endpoint, {
-    method,
-    ...(data === null ? {} : { body: JSON.stringify(data) })
-});
-export const fetchDevices = () => api.getDevices();
-export const registerDevice = deviceData => api.addDevice(deviceData);
-export const testDeviceConnection = deviceData => api.testConnection(deviceData);
-export const fetchScannedUsers = () => api.getUsers();
-export const triggerNetworkSync = () => api.triggerScan();
-export const triggerScan = () => api.triggerScan();
+export async function fetchScannedUsers() {
+    const snapshot = await fetchStatusSnapshot();
+    return snapshot.users || [];
+}
 
+// Legacy write/API methods are intentionally disabled in this static read-only architecture.
+export async function triggerScan() {
+    throw new Error('Dashboard is read-only. Start the GitHub Actions workflow to run a new scan.');
+}
+export const triggerNetworkSync = triggerScan;
+export const apiFetch = async () => { throw new Error('No backend API is configured in GitHub-only mode.'); };
+export const apiRequest = apiFetch;
+export const registerDevice = apiFetch;
+export const testDeviceConnection = apiFetch;
+
+const api = {
+    getDevices: fetchDevices,
+    getUsers: fetchScannedUsers,
+    triggerScan,
+    getSnapshot: fetchStatusSnapshot
+};
 window.api = api;
 Object.assign(window, {
-    apiFetch,
-    apiRequest,
+    fetchStatusSnapshot,
     fetchDevices,
-    registerDevice,
-    testDeviceConnection,
     fetchScannedUsers,
     triggerNetworkSync,
     triggerScan
 });
 
-/* Shared responsive navigation for all pages importing this module. */
+/* Shared responsive navigation for pages that use this adapter. */
 function initMobileNavigation() {
     const sidebar = document.getElementById('sidebarMenu') || document.getElementById('sidebar');
     if (!sidebar) return;
     sidebar.id = 'sidebarMenu';
-
-    let header = document.querySelector('.mobile-header');
-    if (!header) {
-        header = document.createElement('header');
-        header.className = 'mobile-header';
-        header.innerHTML = `
-            <span class="mobile-brand">ISP Cloud Monitoring</span>
-            <button class="btn btn-dark text-white border-0" id="sidebarToggle"
-                    type="button" aria-label="Toggle navigation"
-                    aria-expanded="false" aria-controls="sidebarMenu">
-                <i class="fas fa-bars fa-lg" aria-hidden="true"></i>
-            </button>`;
-        document.body.prepend(header);
-    }
-
-    const toggle = header.querySelector('#sidebarToggle') || document.getElementById('sidebarToggle');
+    const toggle = document.getElementById('sidebarToggle');
     if (!toggle || toggle.dataset.navBound === 'true') return;
-
-    let overlay = document.getElementById('sidebarOverlay');
-    if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.id = 'sidebarOverlay';
-        overlay.className = 'mobile-sidebar-overlay';
-        overlay.setAttribute('aria-hidden', 'true');
-        document.body.appendChild(overlay);
-    }
-
+    const overlay = document.getElementById('sidebarOverlay');
     const close = () => {
         sidebar.classList.remove('active');
-        overlay.classList.remove('active');
-        overlay.setAttribute('aria-hidden', 'true');
+        overlay?.classList.remove('active');
         toggle.setAttribute('aria-expanded', 'false');
     };
-    const open = () => {
-        sidebar.classList.add('active');
-        overlay.classList.add('active');
-        overlay.setAttribute('aria-hidden', 'false');
-        toggle.setAttribute('aria-expanded', 'true');
-    };
-
     toggle.dataset.navBound = 'true';
-    toggle.addEventListener('click', event => {
-        event.stopPropagation();
-        sidebar.classList.contains('active') ? close() : open();
+    toggle.addEventListener('click', () => {
+        const open = !sidebar.classList.contains('active');
+        sidebar.classList.toggle('active', open);
+        overlay?.classList.toggle('active', open);
+        toggle.setAttribute('aria-expanded', String(open));
     });
-    overlay.addEventListener('click', close);
-    document.addEventListener('click', event => {
-        if (!sidebar.contains(event.target) && !toggle.contains(event.target)) close();
-    });
+    overlay?.addEventListener('click', close);
     sidebar.querySelectorAll('a').forEach(link => link.addEventListener('click', close));
-    window.addEventListener('resize', () => {
-        if (window.innerWidth > 992) close();
-    });
 }
-
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initMobileNavigation, { once: true });
 } else {
