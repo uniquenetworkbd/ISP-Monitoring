@@ -15,7 +15,7 @@ An enterprise-grade, cloud-based multi-page frontend and backend architecture de
 
 ## 📁 Project Directory Structure
 
-\`\`\`text
+```text
 isp-cloud-monitor/
 │
 ├── frontend/
