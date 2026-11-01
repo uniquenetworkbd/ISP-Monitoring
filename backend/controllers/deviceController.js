@@ -1,136 +1,44 @@
-/**
- * ============================================================================
- * ISP MONITORING SYSTEM - DEVICE CONTROLLER LOGIC
- * Description: Handles device registration, cloud storage, and API operations
- * ============================================================================
- */
-
 const Device = require('../models/Device');
 
-// @desc    Get all connected devices
-// @route   GET /api/devices
-// @access  Public / Cloud Admin
-const getDevices = async (req, res) => {
-    try {
-        const devices = await Device.find().sort({ createdAt: -1 });
-        res.status(200).json({
-            status: 'success',
-            count: devices.length,
-            data: devices
-        });
-    } catch (error) {
-        res.status(500).json({
-            status: 'error',
-            message: 'Failed to retrieve devices from cloud database',
-            error: error.message
-        });
+async function getDevices(req, res, next) {
+  try {
+    const devices = await Device.find().sort({ createdAt: -1 }).lean();
+    res.json({ status: 'success', count: devices.length, data: devices });
+  } catch (error) { next(error); }
+}
+
+async function addDevice(req, res, next) {
+  try {
+    const { deviceName, deviceType, deviceIP, devicePort, deviceUser, devicePass } = req.body;
+    if (![deviceName, deviceType, deviceIP, devicePort, deviceUser, devicePass].every(v => v !== undefined && v !== null && String(v).trim() !== '')) {
+      return res.status(400).json({ status: 'fail', message: 'All device fields are required.' });
     }
-};
+    const device = await Device.create({
+      deviceName, deviceType, deviceIP, devicePort: Number(devicePort),
+      deviceUser, devicePass, status: 'Connecting'
+    });
+    const safeDevice = device.toObject();
+    delete safeDevice.devicePass;
+    res.status(201).json({ status: 'success', message: 'Device saved. Live connectivity has not yet been verified.', data: safeDevice });
+  } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ status: 'fail', message: 'Device name already exists.' });
+    next(error);
+  }
+}
 
-// @desc    Add and save a new ISP device
-// @route   POST /api/devices/add
-// @access  Public / Cloud Admin
-const addDevice = async (req, res) => {
-    try {
-        const { deviceName, deviceType, deviceIP, devicePort, deviceUser, devicePass } = req.body;
+async function deleteDevice(req, res, next) {
+  try {
+    const device = await Device.findByIdAndDelete(req.params.id);
+    if (!device) return res.status(404).json({ status: 'fail', message: 'Device not found.' });
+    res.json({ status: 'success', message: 'Device record deleted.' });
+  } catch (error) { next(error); }
+}
 
-        // Check if device already exists
-        const existingDevice = await Device.findOne({ deviceName });
-        if (existingDevice) {
-            return res.status(400).json({
-                status: 'fail',
-                message: 'Device with this name or tag already exists in cloud storage.'
-            });
-        }
+async function testConnection(req, res) {
+  return res.status(501).json({
+    status: 'not_implemented',
+    message: 'Protocol-specific MikroTik/OLT connection drivers are required; this endpoint does not simulate a successful connection.'
+  });
+}
 
-        // Create and save new device
-        const newDevice = await Device.create({
-            deviceName,
-            deviceType,
-            deviceIP,
-            devicePort,
-            deviceUser,
-            devicePass,
-            status: 'Live Active'
-        });
-
-        res.status(201).json({
-            status: 'success',
-            message: 'Device successfully connected and saved to cloud database!',
-            data: newDevice
-        });
-    } catch (error) {
-        res.status(400).json({
-            status: 'error',
-            message: 'Failed to save device data',
-            error: error.message
-        });
-    }
-};
-
-// @desc    Delete a device by ID
-// @route   DELETE /api/devices/:id
-// @access  Public / Cloud Admin
-const deleteDevice = async (req, res) => {
-    try {
-        const device = await Device.findById(req.findById || req.params.id);
-
-        if (!device) {
-            return res.status(404).json({
-                status: 'fail',
-                message: 'Device not found in cloud database.'
-            });
-        }
-
-        await device.deleteOne();
-
-        res.status(200).json({
-            status: 'success',
-            message: 'Device successfully disconnected and removed from cloud.'
-        });
-    } catch (error) {
-        res.status(500).json({
-            status: 'error',
-            message: 'Failed to delete device',
-            error: error.message
-        });
-    }
-};
-
-// @desc    Test device connection (Mikrotik API / OLT Telnet placeholder)
-// @route   POST /api/devices/test
-// @access  Public / Cloud Admin
-const testConnection = async (req, res) => {
-    try {
-        const { deviceType, deviceIP, devicePort, deviceUser, devicePass } = req.body;
-
-        // Placeholder for direct TCP/API ping test logic
-        // In actual production, ROS API socket or SNMP query will be executed here.
-        if (!deviceIP || !devicePort) {
-            return res.status(400).json({
-                status: 'fail',
-                message: 'IP Address and Port are required for connection testing.'
-            });
-        }
-
-        // Simulate successful handshake response
-        res.status(200).json({
-            status: 'success',
-            message: `Successfully established test connection with ${deviceType.toUpperCase()} at ${deviceIP}:${devicePort}`,
-            connectionStatus: 'Live Active'
-        });
-    } catch (error) {
-        res.status(500).json({
-            status: 'error',
-            message: 'Connection test failed',
-            error: error.message
-        });
-    }
-};
-
-module.exports = {
-    getDevices,
-    addDevice,
-    deleteDevice,
-    testConnection
-};
+module.exports = { getDevices, addDevice, deleteDevice, testConnection };
