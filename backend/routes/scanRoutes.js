@@ -1,1 +1,0 @@
-export function scanRoutes() { return { method: 'POST', path: '/api/scan-now' }; }
