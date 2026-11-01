@@ -15,6 +15,7 @@ function buildSnapshot(results, users = [], previous = null, now = new Date().to
         });
         return {
             ...normalized,
+            type: normalized.deviceType,
             status: result.status,
             checkedAt: result.checkedAt || now,
             systemInfo: result.systemInfo || null,
