@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  metadata: read
 
 concurrency:
   group: isp-json-snapshot
@@ -23,6 +24,7 @@ jobs:
           persist-credentials: true
 
       - name: Block customer-data scans in public repositories
+        id: privacy_guard
         run: node backend/scripts/assertPrivateRepository.js
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -49,7 +51,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
       - name: Ensure diagnostic snapshot exists
-        if: always()
+        if: always() && steps.privacy_guard.outcome == 'success'
         run: |
           mkdir -p data
           if [ ! -s data/devices-status.json ]; then
@@ -57,11 +59,11 @@ jobs:
           fi
 
       - name: Validate status snapshot
-        if: always()
+        if: always() && steps.privacy_guard.outcome == 'success'
         run: node backend/scripts/validateSnapshot.js
 
       - name: Commit and push JSON snapshot
-        if: always()
+        if: always() && steps.privacy_guard.outcome == 'success'
         run: |
           if [ ! -f data/devices-status.json ]; then
             echo "No status snapshot exists; nothing to publish."
