@@ -1,0 +1,4 @@
+const test=require('node:test'),assert=require('node:assert/strict'),{sendTelegramAlerts}=require('./alertNotifier');
+test('skips if Telegram secrets are not configured',async()=>assert.equal((await sendTelegramAlerts([{severity:'critical',message:'x'}],{token:'',chatId:''})).status,'skipped'));
+test('sends only critical and warning notifications',async()=>{let calls=0;const r=await sendTelegramAlerts([{severity:'critical',message:'offline'},{severity:'info',message:'recovered'},{severity:'warning',message:'low RX'}],{token:'test',chatId:'123',fetch:async(url,o)=>{calls++;assert.match(url,/sendMessage$/);assert.equal(JSON.parse(o.body).chat_id,'123');return{ok:true,json:async()=>({ok:true})}}});assert.equal(calls,1);assert.equal(r.sent,2)});
+test('reports Telegram API errors',async()=>assert.rejects(()=>sendTelegramAlerts([{severity:'critical',message:'x'}],{token:'x',chatId:'1',fetch:async()=>({ok:false,status:401})}),/HTTP 401/));

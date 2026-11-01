@@ -1,63 +1,8 @@
-const fs = require('fs');
-const path = require('path');
-
-function indexDevices(snapshot) {
-    return new Map((snapshot?.devices || []).map(device => [device.deviceId, device]));
-}
-
-function userKey(user) {
-    const identity = user.username || user.user || user.address || user.callerId;
-    if (!identity) throw new Error('Active user requires a stable username, user, address, or callerId');
-    return `${user.sourceDeviceTag || user.deviceId || 'unknown'}:${String(identity).toLowerCase()}`;
-}
-
-function indexUsers(snapshot) {
-    return new Map((snapshot?.users || []).map(user => [userKey(user), user]));
-}
-
-function buildHistoryRecord(previous, current) {
-    if (!current || typeof current !== 'object') throw new Error('Current snapshot is required');
-
-    const previousDevices = indexDevices(previous);
-    const currentDevices = indexDevices(current);
-    const deviceChanges = [];
-
-    for (const [deviceId, device] of currentDevices) {
-        const old = previousDevices.get(deviceId);
-        if (!old) deviceChanges.push({ deviceId, change: 'added', from: null, to: device.status });
-        else if (old.status !== device.status) deviceChanges.push({ deviceId, change: 'status_changed', from: old.status, to: device.status });
-    }
-    for (const [deviceId, device] of previousDevices) {
-        if (!currentDevices.has(deviceId)) deviceChanges.push({ deviceId, change: 'removed', from: device.status, to: null });
-    }
-
-    const previousUsers = indexUsers(previous);
-    const currentUsers = indexUsers(current);
-    let usersAdded = 0;
-    let usersRemoved = 0;
-    for (const key of currentUsers.keys()) if (!previousUsers.has(key)) usersAdded += 1;
-    for (const key of previousUsers.keys()) if (!currentUsers.has(key)) usersRemoved += 1;
-
-    return {
-        schemaVersion: 1,
-        recordedAt: current.lastUpdated || new Date().toISOString(),
-        snapshotStatus: current.status,
-        deviceCounts: { scanned: current.scannedDevices, online: current.onlineDevices, offline: current.offlineDevices },
-        activeUsers: current.totalActiveUsers,
-        userChanges: { added: usersAdded, removed: usersRemoved },
-        deviceChanges
-    };
-}
-
-function appendHistoryRecord(directory, record) {
-    if (!record || typeof record !== 'object' || !record.recordedAt) throw new Error('Valid history record is required');
-    const date = new Date(record.recordedAt);
-    if (Number.isNaN(date.getTime())) throw new Error('History recordedAt must be a valid date');
-    const day = date.toISOString().slice(0, 10);
-    const target = path.resolve(directory, `${day}.jsonl`);
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.appendFileSync(target, `${JSON.stringify(record)}\n`, { encoding: 'utf8', mode: 0o644 });
-    return target;
-}
-
-module.exports = { buildHistoryRecord, appendHistoryRecord };
+const fs=require('fs'),path=require('path');
+function indexDevices(s){return new Map((s?.devices||[]).map(d=>[d.deviceId,d]));}
+function userKey(u){const id=u.username||u.user||u.address||u.callerId;if(!id)throw new Error('Active user requires a stable identity');return `${u.sourceDeviceTag||u.deviceId||'unknown'}:${String(id).toLowerCase()}`;}
+function buildHistoryRecord(previous,current){if(!current||typeof current!=='object')throw new Error('Current snapshot is required');const pd=indexDevices(previous),cd=indexDevices(current),deviceChanges=[];for(const[id,d]of cd){const o=pd.get(id);if(!o)deviceChanges.push({deviceId:id,change:'added',from:null,to:d.status});else if(o.status!==d.status)deviceChanges.push({deviceId:id,change:'status_changed',from:o.status,to:d.status});}for(const[id,d]of pd)if(!cd.has(id))deviceChanges.push({deviceId:id,change:'removed',from:d.status,to:null});const pu=new Map((previous?.users||[]).map(u=>[userKey(u),u])),cu=new Map((current.users||[]).map(u=>[userKey(u),u]));let added=0,removed=0;for(const k of cu.keys())if(!pu.has(k))added++;for(const k of pu.keys())if(!cu.has(k))removed++;const all=(current.telemetry?.devices||[]).flatMap(d=>(d.interfaces||[]).map(i=>i)),valid=all.filter(i=>Number.isFinite(i.rxBitsPerSecond)&&Number.isFinite(i.txBitsPerSecond));return{schemaVersion:2,recordedAt:current.lastUpdated||new Date().toISOString(),snapshotStatus:current.status,deviceCounts:{scanned:current.scannedDevices,online:current.onlineDevices,offline:current.offlineDevices},activeUsers:current.totalActiveUsers,userChanges:{added,removed},deviceChanges,traffic:{interfaces:valid.length,rxBitsPerSecond:valid.reduce((n,i)=>n+i.rxBitsPerSecond,0),txBitsPerSecond:valid.reduce((n,i)=>n+i.txBitsPerSecond,0)},alerts:(current.alerts?.items||[]).map(a=>({severity:a.severity,code:a.code,message:a.message,detectedAt:a.detectedAt}))};}
+function appendHistoryRecord(directory,record){if(!record?.recordedAt||Number.isNaN(Date.parse(record.recordedAt)))throw new Error('Valid history record is required');const day=new Date(record.recordedAt).toISOString().slice(0,10),target=path.resolve(directory,day+'.jsonl');fs.mkdirSync(path.dirname(target),{recursive:true});fs.appendFileSync(target,JSON.stringify(record)+'\n',{encoding:'utf8',mode:0o644});return target;}
+function buildHistoryIndex(directory,now=new Date().toISOString(),days=30){const end=Date.parse(now);if(!Number.isFinite(end)||!Number.isInteger(days)||days<1||days>366)throw new Error('Valid history index range is required');const start=end-days*86400000,samples=[];if(fs.existsSync(directory))for(const name of fs.readdirSync(directory).filter(n=>/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(n)).sort())for(const line of fs.readFileSync(path.join(directory,name),'utf8').split('\n')){if(!line.trim())continue;const r=JSON.parse(line),t=Date.parse(r.recordedAt);if(Number.isFinite(t)&&t>=start&&t<=end)samples.push({recordedAt:r.recordedAt,onlineDevices:r.deviceCounts?.online??0,offlineDevices:r.deviceCounts?.offline??0,activeUsers:r.activeUsers??0,rxBitsPerSecond:r.traffic?.rxBitsPerSecond??null,txBitsPerSecond:r.traffic?.txBitsPerSecond??null,alerts:(r.alerts||[]).length});}samples.sort((a,b)=>Date.parse(a.recordedAt)-Date.parse(b.recordedAt));return{schemaVersion:1,generatedAt:now,windowDays:days,sampleCount:samples.length,samples};}
+function writeHistoryIndex(target,index){const p=path.resolve(target);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p+'.tmp',JSON.stringify(index,null,2)+'\n');fs.renameSync(p+'.tmp',p);return p;}
+module.exports={buildHistoryRecord,appendHistoryRecord,buildHistoryIndex,writeHistoryIndex};
