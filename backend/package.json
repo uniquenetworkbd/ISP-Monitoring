@@ -1,13 +1,15 @@
 {
   "name": "isp-monitoring-github-scanner",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "private": true,
-  "description": "GitHub Actions scanner for MikroTik and OLT; publishes sanitized status snapshots.",
+  "description": "GitHub Actions scanner for MikroTik and OLT; publishes status snapshots.",
   "scripts": {
-    "scan": "node scripts/runSync.js"
+    "scan": "node scripts/runSync.js",
+    "validate": "node scripts/validateSnapshot.js",
+    "test": "node --test"
   },
   "dependencies": {
-    "net-snmp": "^3.26.0",
-    "routeros-client": "latest"
+    "net-snmp": "3.26.0",
+    "routeros-client": "1.1.2"
   }
 }
