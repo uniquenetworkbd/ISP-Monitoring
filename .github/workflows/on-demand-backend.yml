@@ -31,6 +31,10 @@ jobs:
         run: npm install --no-audit --no-fund
         working-directory: backend
 
+      - name: Run automated backend tests
+        run: npm test
+        working-directory: backend
+
       - name: Scan MikroTik and OLT; write JSON snapshot
         run: node backend/scripts/runSync.js
         env:
@@ -41,7 +45,7 @@ jobs:
         run: |
           mkdir -p data
           if [ ! -s data/devices-status.json ]; then
-            node -e 'const fs=require("fs"); const p="data/devices-status.json"; fs.writeFileSync(p, JSON.stringify({schemaVersion:1,lastUpdated:new Date().toISOString(),status:"scan_error",scannedDevices:0,onlineDevices:0,offlineDevices:0,totalActiveUsers:0,devices:[],users:[],error:"Scanner did not produce a snapshot. Check workflow logs and ISP_DEVICES_JSON configuration."},null,2)+"\n");'
+            node -e 'const fs=require("fs"); const p="data/devices-status.json"; fs.writeFileSync(p, JSON.stringify({schemaVersion:2,lastUpdated:new Date().toISOString(),status:"scan_error",scannedDevices:0,onlineDevices:0,offlineDevices:0,totalActiveUsers:0,devices:[],users:[],previousUpdatedAt:null,error:"Scanner did not produce a snapshot. Check workflow logs and ISP_DEVICES_JSON configuration."},null,2)+"\n");'
           fi
 
       - name: Validate status snapshot
