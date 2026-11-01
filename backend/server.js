@@ -16,7 +16,6 @@ const networkScanner = require('./services/networkScannerService');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
-const SCAN_INTERVAL_MS = Math.max(1, Number(process.env.SCAN_INTERVAL_MINUTES) || 5) * 60 * 1000;
 
 app.disable('x-powered-by');
 
@@ -90,7 +89,6 @@ app.use((error, req, res, next) => {
 });
 
 let server;
-let scanTimer;
 
 async function startServer() {
     // Do not accept API traffic or start polling until MongoDB is ready.
@@ -101,22 +99,10 @@ async function startServer() {
         console.log(`Automatic network polling interval: ${SCAN_INTERVAL_MS / 60000} minute(s)`);
     });
 
-    scanTimer = setInterval(async () => {
-        try {
-            console.log('[Scheduler] Starting scheduled network scan...');
-            const result = await networkScanner.scanAllDevices();
-            console.log('[Scheduler] Scan result:', result.status, result.scannedDevices || 0);
-        } catch (error) {
-            console.error('[Scheduler] Network scan failed:', error.message);
-        }
-    }, SCAN_INTERVAL_MS);
-
-    if (typeof scanTimer.unref === 'function') scanTimer.unref();
 }
 
 async function shutdown(signal) {
     console.log(`[Server] ${signal} received; shutting down...`);
-    if (scanTimer) clearInterval(scanTimer);
 
     if (server) {
         await new Promise(resolve => server.close(resolve));
