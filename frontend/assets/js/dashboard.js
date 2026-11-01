@@ -11,43 +11,58 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
 }[char]));
 
 function renderSnapshot(snapshot) {
-    byId('metric-total-devices').textContent = snapshot.scannedDevices ?? snapshot.devices.length;
-    const mikrotikCount = snapshot.devices.filter(device => device.type === 'mikrotik').length;
-    const oltCount = snapshot.devices.filter(device => device.type === 'olt').length;
+    const devices = Array.isArray(snapshot.devices) ? snapshot.devices : [];
+    const users = Array.isArray(snapshot.users) ? snapshot.users : [];
+    const online = Number.isFinite(Number(snapshot.onlineDevices))
+        ? Number(snapshot.onlineDevices) : devices.filter(d => d.status === 'online').length;
+    const offline = Number.isFinite(Number(snapshot.offlineDevices))
+        ? Number(snapshot.offlineDevices) : devices.filter(d => d.status !== 'online').length;
+
+    byId('metric-total-devices').textContent = snapshot.scannedDevices ?? devices.length;
+    const mikrotikCount = devices.filter(device => device.type === 'mikrotik').length;
+    const oltCount = devices.filter(device => device.type === 'olt').length;
     byId('metric-device-breakdown').textContent = `MikroTik: ${mikrotikCount} | OLT: ${oltCount}`;
-    byId('metric-online-devices').textContent = snapshot.onlineDevices ?? snapshot.devices.filter(d => d.status === 'online').length;
-    byId('metric-active-users').textContent = snapshot.totalActiveUsers ?? (snapshot.users || []).length;
-    byId('metric-offline-devices').textContent = `${snapshot.offlineDevices ?? snapshot.devices.filter(d => d.status !== 'online').length} device(s) offline`;
+    byId('metric-online-devices').textContent = online;
+    byId('metric-active-users').textContent = snapshot.totalActiveUsers ?? users.length;
+    byId('metric-offline-devices').textContent = `${offline} device(s) offline`;
     byId('snapshot-updated').textContent = `Last scan: ${formatDate(snapshot.lastUpdated)}`;
 
     const status = byId('snapshot-status');
-    status.textContent = `GitHub JSON: ${String(snapshot.status || 'unknown').toUpperCase()}`;
-    status.className = `badge p-2 ${snapshot.status === 'success' ? 'bg-success' : snapshot.status === 'partial' ? 'bg-warning text-dark' : 'bg-danger'}`;
+    const snapshotState = String(snapshot.status || 'unknown').toLowerCase();
+    status.textContent = `GitHub JSON: ${snapshotState.toUpperCase()}`;
+    status.className = `badge p-2 ${snapshotState === 'success' ? 'bg-success' : snapshotState === 'partial' ? 'bg-warning text-dark' : 'bg-danger'}`;
 
-    const rows = snapshot.devices.map(device => {
-        const online = device.status === 'online';
+    const rows = devices.map(device => {
+        const isOnline = device.status === 'online';
         return `<tr>
             <td class="fw-semibold">${escapeHtml(device.device || 'Unnamed')}</td>
             <td>${escapeHtml(device.type || '—')}</td>
             <td><code>${escapeHtml(device.host || '—')}</code></td>
-            <td><span class="badge ${online ? 'bg-success' : 'bg-danger'}">${online ? 'Online' : 'Offline'}</span>${device.error ? `<div class="small text-danger mt-1">${escapeHtml(device.error)}</div>` : ''}</td>
+            <td><span class="badge ${isOnline ? 'bg-success' : 'bg-danger'}">${isOnline ? 'Online' : 'Offline'}</span>${device.error ? `<div class="small text-danger mt-1">${escapeHtml(device.error)}</div>` : ''}</td>
             <td class="small text-muted">${formatDate(device.checkedAt)}</td>
         </tr>`;
     }).join('');
-    byId('device-status-rows').innerHTML = rows || '<tr><td colspan="5" class="text-muted text-center">No scan data yet. Run the GitHub Actions workflow.</td></tr>';
+
+    byId('device-status-rows').innerHTML = rows || '<tr><td colspan="5" class="text-muted text-center py-4">No device scan data is available yet. Configure devices and run the GitHub Actions scanner.</td></tr>';
+}
+
+function renderFallback(error) {
+    const status = byId('snapshot-status');
+    status.textContent = 'GitHub JSON: UNAVAILABLE';
+    status.className = 'badge bg-warning text-dark p-2';
+    byId('snapshot-updated').textContent = 'Snapshot could not be loaded';
+    byId('device-status-rows').innerHTML = `<tr><td colspan="5" class="text-warning text-center py-4">${escapeHtml(error?.message || 'Status snapshot unavailable. Please retry.')}</td></tr>`;
 }
 
 async function loadDashboard() {
-    const status = byId('snapshot-status');
     try {
         const snapshot = await fetchStatusSnapshot({ force: true });
         renderSnapshot(snapshot);
     } catch (error) {
-        status.textContent = 'GitHub JSON: ERROR';
-        status.className = 'badge bg-danger p-2';
-        byId('device-status-rows').innerHTML = `<tr><td colspan="5" class="text-danger text-center">${escapeHtml(error.message)}</td></tr>`;
+        console.warn('[ISP Dashboard] Snapshot load failed:', error);
+        renderFallback(error);
     }
 }
+
 loadDashboard();
-// Refresh the published snapshot periodically; hardware polling remains an Actions job.
 window.setInterval(loadDashboard, 60000);
