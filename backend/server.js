@@ -5,7 +5,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const deviceRoutes = require('./routes/deviceRoutes');
 const userRoutes = require('./routes/userRoutes');
-const { scanAllDevicesNetwork } = require('./services/networkScannerService');
+const networkScanner = require('./services/networkScannerService');
 
 const app = express();
 app.disable('x-powered-by');
@@ -30,7 +30,7 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/users', userRoutes);
 app.post('/api/scan', async (req, res, next) => {
   try {
-    const result = await scanAllDevicesNetwork();
+    const result = await networkScanner.scanAllDevices();
     res.status(200).json(result);
   } catch (error) {
     next(error);
