@@ -1,82 +1,40 @@
-/**
- * ============================================================================
- * ISP MONITORING SYSTEM - USER CONTROLLER LOGIC
- * Description: Handles synchronized ISP client records, search, and cloud caching
- * ============================================================================
- */
-
 const ScannedUser = require('../models/User');
 
-// @desc    Get all synchronized ISP users
-// @route   GET /api/users
-// @access  Public / Cloud Admin
-const getUsers = async (req, res) => {
-    try {
-        const users = await ScannedUser.find().sort({ lastSync: -1 });
-        res.status(200).json({
-            status: 'success',
-            count: users.length,
-            data: users
-        });
-    } catch (error) {
-        res.status(500).json({
-            status: 'error',
-            message: 'Failed to retrieve scanned users from cloud database',
-            error: error.message
-        });
+async function getUsers(req, res, next) {
+  try {
+    const users = await ScannedUser.find().sort({ lastSync: -1 }).lean();
+    res.json({ status: 'success', count: users.length, data: users });
+  } catch (error) { next(error); }
+}
+
+async function syncUsers(req, res, next) {
+  try {
+    const { clients, sourceDeviceTag } = req.body;
+    if (!Array.isArray(clients) || !sourceDeviceTag) {
+      return res.status(400).json({ status: 'fail', message: 'clients array and sourceDeviceTag are required.' });
     }
-};
-
-// @desc    Sync or Add scanned client records from Mikrotik/OLT
-// @route   POST /api/users/sync
-// @access  Public / Cloud Admin
-const syncUsers = async (req, res) => {
-    try {
-        const { clients, sourceDeviceTag } = req.body;
-
-        if (!clients || !Array.isArray(clients)) {
-            return res.status(400).json({
-                status: 'fail',
-                message: 'Invalid clients data payload provided for synchronization.'
-            });
-        }
-
-        let syncedCount = 0;
-
-        for (const client of clients) {
-            const { username, assignedIP, macAddress, status } = client;
-
-            // Upsert client record based on MAC address or username
-            await ScannedUser.findOneAndUpdate(
-                { macAddress: macAddress.toUpperCase() },
-                {
-                    username,
-                    assignedIP,
-                    macAddress: macAddress.toUpperCase(),
-                    sourceDeviceTag,
-                    status: status || 'Active',
-                    lastSync: Date.now()
-                },
-                { upsert: true, new: true }
-            );
-            syncedCount++;
-        }
-
-        res.status(200).json({
-            status: 'success',
-            message: `Successfully synchronized ${syncedCount} client records to cloud storage.`,
-            source: sourceDeviceTag
-        });
-    } catch (error) {
-        res.status(500).json({
-            status: 'error',
-            message: 'Failed to synchronize client records',
-            error: error.message
-        });
+    for (const [index, client] of clients.entries()) {
+      if (!client.username || !client.assignedIP || !client.macAddress) {
+        return res.status(400).json({ status: 'fail', message: `Client at index ${index} is missing username, assignedIP or macAddress.` });
+      }
     }
-};
+    const operations = clients.map(client => ({
+      updateOne: {
+        filter: { macAddress: String(client.macAddress).toUpperCase() },
+        update: { $set: {
+          username: client.username,
+          assignedIP: client.assignedIP,
+          macAddress: String(client.macAddress).toUpperCase(),
+          sourceDeviceTag,
+          status: client.status || 'Active',
+          lastSync: new Date()
+        }},
+        upsert: true
+      }
+    }));
+    if (operations.length) await ScannedUser.bulkWrite(operations, { ordered: false });
+    res.json({ status: 'success', syncedCount: clients.length, source: sourceDeviceTag });
+  } catch (error) { next(error); }
+}
 
-module.exports = {
-    getUsers,
-    syncUsers
-};
+module.exports = { getUsers, syncUsers };
