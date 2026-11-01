@@ -1,9 +1,12 @@
 const express = require('express');
-const { getDevices, addDevice, deleteDevice, testConnection } = require('../controllers/deviceController');
+const deviceController = require('../controllers/deviceController');
 
 const router = express.Router();
-router.route('/').get(getDevices).post(addDevice);
-router.post('/test', testConnection);
-router.delete('/:id', deleteDevice);
+
+router.get('/', deviceController.getDevices);
+router.post('/add', deviceController.addDevice);
+router.post('/test-connection', deviceController.testConnection);
+router.post('/scan', deviceController.triggerScan);
+router.delete('/:id', deviceController.deleteDevice);
 
 module.exports = router;
