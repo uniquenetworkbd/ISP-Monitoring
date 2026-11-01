@@ -1,94 +1,12 @@
-/**
- * ============================================================================
- * ENTERPRISE MIKROTIK ROUTEROS API SERVICE
- * ============================================================================
- *
- * Live RouterOS API integration.
- * - Does not fabricate router data.
- * - Opens a fresh API connection per operation.
- * - Closes channel/connection on success and failure.
- * - Supports RouterOS API (8728 by default) and API-SSL (8729 via port).
- */
-
 const { RouterOSClient } = require('routeros-client');
-
-class MikroTikService {
-    constructor(host, user, password, port = 8728) {
-        if (!host || !user || !password) {
-            throw new Error('MikroTik host, user and password are required');
-        }
-
-        this.host = host;
-        this.user = user;
-        this.password = password;
-        this.port = Number.parseInt(port, 10) || 8728;
-    }
-
-    async connect() {
-        const client = new RouterOSClient({
-            host: this.host,
-            user: this.user,
-            password: this.password,
-            port: this.port,
-            timeout: 10
-        });
-
-        try {
-            return await client.connect();
-        } catch (error) {
-            throw new Error(`MikroTik Connection Failed [${this.host}]: ${error.message}`);
-        }
-    }
-
-    async getActivePPPoEUsers() {
-        let conn;
-        let channel;
-
-        try {
-            conn = await this.connect();
-            channel = await conn.openChannel('pppoe-active');
-            const activeUsers = await channel.write('/ppp/active/print');
-
-            return activeUsers.map(user => ({
-                username: user.name,
-                address: user.address,
-                uptime: user.uptime,
-                callerId: user['caller-id'] || 'N/A',
-                service: user.service
-            }));
-        } catch (error) {
-            throw new Error(`Failed to fetch PPPoE users from ${this.host}: ${error.message}`);
-        } finally {
-            if (channel) await channel.close().catch(() => {});
-            if (conn) await conn.close().catch(() => {});
-        }
-    }
-
-    async getSystemResource() {
-        let conn;
-        let channel;
-
-        try {
-            conn = await this.connect();
-            channel = await conn.openChannel('sys-resource');
-            const resource = await channel.write('/system/resource/print');
-            const res = resource[0] || {};
-
-            return {
-                uptime: res.uptime,
-                cpuLoad: res['cpu-load'],
-                freeMemory: res['free-memory'],
-                totalMemory: res['total-memory'],
-                boardName: res['board-name'],
-                version: res.version
-            };
-        } catch (error) {
-            throw new Error(`Failed to fetch system resource from ${this.host}: ${error.message}`);
-        } finally {
-            if (channel) await channel.close().catch(() => {});
-            if (conn) await conn.close().catch(() => {});
-        }
-    }
+function counter(value){if(value===undefined||value===null||value==='')return null;const n=Number(value);return Number.isFinite(n)&&n>=0?n:null;}
+class MikroTikService{
+ constructor(host,user,password,port=8728,options={}){if(!host||!user||!password)throw new Error('MikroTik host, user and password are required');this.host=host;this.user=user;this.password=password;this.port=Number.parseInt(port,10)||8728;this.timeout=Number(options.timeout)>0?Number(options.timeout):10000;this.clientFactory=options.clientFactory||(config=>new RouterOSClient(config));}
+ async connect(){const client=this.clientFactory({host:this.host,user:this.user,password:this.password,port:this.port,timeout:this.timeout/1000});try{return await client.connect();}catch(e){throw new Error(`MikroTik connection failed [${this.host}]: ${e.message}`);}}
+ async runCommand(channelName,command){let conn,channel;try{conn=await this.connect();channel=await conn.openChannel(channelName);const rows=await channel.write(command);return Array.isArray(rows)?rows:[];}catch(e){throw new Error(`RouterOS command failed on ${this.host} (${command}): ${e.message}`);}finally{if(channel)await channel.close().catch(()=>{});if(conn)await conn.close().catch(()=>{});}}
+ async getActivePPPoEUsers(){return (await this.runCommand('pppoe-active','/ppp/active/print')).map(u=>({username:u.name||null,address:u.address||null,uptime:u.uptime||null,callerId:u['caller-id']||null,service:u.service||null}));}
+ async getSystemResource(){const r=(await this.runCommand('sys-resource','/system/resource/print'))[0]||{};return{uptime:r.uptime||null,cpuLoad:counter(r['cpu-load']),freeMemory:counter(r['free-memory']),totalMemory:counter(r['total-memory']),boardName:r['board-name']||null,version:r.version||null};}
+ async getInterfaces(){return(await this.runCommand('interfaces','/interface/print')).map(r=>({id:r['.id']||null,name:r.name||null,type:r.type||null,running:r.running==='true'||r.running===true,disabled:r.disabled==='true'||r.disabled===true,macAddress:r['mac-address']||null,rxBytes:counter(r['rx-byte']),txBytes:counter(r['tx-byte']),rxPackets:counter(r['rx-packet']),txPackets:counter(r['tx-packet'])}));}
+ async getSimpleQueues(){return(await this.runCommand('simple-queues','/queue/simple/print')).map(r=>({id:r['.id']||null,name:r.name||null,target:r.target||null,maxLimit:r['max-limit']||null,rate:r.rate||null,bytes:r.bytes||null,packets:r.packets||null,disabled:r.disabled==='true'||r.disabled===true}));}
 }
-
-module.exports = MikroTikService;
+module.exports=MikroTikService;
