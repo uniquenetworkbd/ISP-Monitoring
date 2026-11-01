@@ -1,0 +1,19 @@
+{
+  "devices": [
+    {
+      "deviceName": "Core-Router-01",
+      "deviceType": "mikrotik",
+      "deviceIP": "10.0.0.1",
+      "devicePort": 8728,
+      "deviceUser": "monitoring-readonly",
+      "devicePass": "SUPPLY_VIA_ISP_DEVICES_JSON_SECRET"
+    },
+    {
+      "deviceName": "OLT-POP-01",
+      "deviceType": "olt",
+      "deviceIP": "10.0.0.2",
+      "snmpPort": 161,
+      "snmpCommunity": "SUPPLY_VIA_ISP_DEVICES_JSON_SECRET"
+    }
+  ]
+}
